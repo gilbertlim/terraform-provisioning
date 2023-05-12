@@ -1,0 +1,4 @@
+#!/bin/bash
+sudo yum install httpd -y
+sudo echo '<html><title>Nginx</title><h1>테스트입니다.</h1></html>' > /var/www/html/index.html
+sudo service httpd start

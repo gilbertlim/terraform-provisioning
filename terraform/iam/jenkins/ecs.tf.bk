@@ -1,0 +1,6 @@
+module "ecs" {
+  source = "../_module/ecs"
+
+  tags     = module.tags.tags
+  ec2_role = module.ec2.aws_iam_role
+}

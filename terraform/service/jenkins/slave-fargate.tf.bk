@@ -1,0 +1,78 @@
+resource "aws_ecs_cluster" "this" {
+  name = "${module.tags.tags.Owner}-${module.tags.tags.Resource}-cluster"
+}
+
+resource "aws_ecs_task_definition" "jenkins" {
+  family                   = "jenkins"
+  requires_compatibilities = ["FARGATE"]
+  execution_role_arn       = data.aws_iam_role.this.arn
+  network_mode             = "awsvpc"
+  cpu                      = 1024
+  memory                   = 2048
+
+  container_definitions = jsonencode([
+    {
+      name      = "jenkins"
+      image     = var.ami
+      essential = true
+
+      mountPoints = [
+        {
+          containerPath = "/var/jenkins_home"
+          sourceVolume  = "efs-jenkins"
+        }
+      ]
+
+      portMappings = [
+        {
+          containerPort = 8080
+          hostPort      = 8080
+        }
+      ]
+    }
+  ])
+
+  volume {
+    name = "efs-jenkins"
+    efs_volume_configuration {
+      file_system_id = aws_efs_file_system.jenkins.id
+      root_directory = "/jenkins-master"
+    }
+  }
+}
+
+resource "aws_efs_file_system" "jenkins" {
+  creation_token = "${module.tags.tags.Owner}-${module.tags.tags.Resource}-efs"
+
+  tags = {
+    Name = "${module.tags.tags.Owner}-${module.tags.tags.Resource}-efs"
+  }
+}
+
+
+resource "aws_ecs_service" "jenkins" {
+  name            = "jenkins"
+  cluster         = aws_ecs_cluster.this.id
+  task_definition = aws_ecs_task_definition.jenkins.arn
+  desired_count   = 1
+  # depends_on       = [data.aws_iam_role.this.arn]
+  platform_version = "1.4.0"
+  launch_type      = "FARGATE"
+
+  network_configuration {
+    security_groups = ["sg-0659bd20f5bd92b6"]
+    subnets         = ["subnet-06659c6ced1b9e1c0"]
+  }
+
+  # load_balancer {
+  #   target_group_arn = aws_lb_target_group.albdev.arn
+  #   container_name   = "jenkins"
+  #   container_port   = 8080
+  # }
+
+}
+
+
+data "aws_iam_role" "this" {
+  name = "${module.tags.tags.Owner}-${module.tags.tags.Resource}-role"
+}
